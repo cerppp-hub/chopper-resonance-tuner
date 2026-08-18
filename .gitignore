@@ -2,3 +2,6 @@ chopper-resonance-tuner/*
 .idea/*
 *.csv
 .venv
+__pycache__/
+artifacts/
+dist/
