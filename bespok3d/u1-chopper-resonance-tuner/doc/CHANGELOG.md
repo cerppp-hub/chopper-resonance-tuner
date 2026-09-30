@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.0-u1.0 - 2026-09-30
+
+- Rebase the plugin on eoyilmaz's CoreXY motor-isolation fork at commit
+  `7e95549c2863b86340aba6eab35c8635675e0584`.
+- Replace the macro, shell-command bridge, and external CSV plotter with the
+  native `chopper_tune.py` Klipper extension.
+- Support the firmware 1.6+/2.0 `sensor_accelerometer_identify` wrapper and
+  either detected LIS2DW or SC7A20, while retaining the legacy direct sensor.
+- Detect stock 200-step or upgraded 400-step motors and reject mismatched X/Y
+  CoreXY motor resolutions.
+- Preserve explicit TMC Autotune current, TBL, TOFF, HSTRT, HEND, and TPFD
+  settings in resonance discovery; leave MRES, INTPOL, and DEDGE untouched.
+- Use the U1's 12.5 MHz TMC2240 clock, keep a one-millimetre travel boundary,
+  restrict tuning to X/Y, and disable automatic `printer.cfg` writes by
+  default.
+- Bake NumPy, SciPy, and Plotly as reversible Klipper Python dependencies and
+  save output in the U1's gcode-visible storage.
+
 ## 0.1.0-u1.3 - 2026-08-16
 
 - Let explicit chopper fields override static `printer.cfg` defaults in vibration-discovery mode, so a run can preserve values applied dynamically by TMC Autotune.

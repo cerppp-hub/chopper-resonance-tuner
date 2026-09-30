@@ -1,124 +1,117 @@
 # Snapmaker U1 installation and safety guide
 
-This branch packages Chopper Resonance Tuner for a Snapmaker U1 through
-Bespok3d. Do not run upstream `install.sh` on the printer: its Raspberry
-Pi-style paths, apt commands, and pip/venv setup do not match the U1 appliance.
+This branch packages the CoreXY fork of Chopper Resonance Tuner for the
+Snapmaker U1 through Bespok3d. It targets the stock U1 motion system and the
+LDO-42STH48-2503MAC 0.9-degree X/Y upgrade on firmware 1.6 through 2.0.
 
-## Scope
+Do not run upstream `install.sh` on the printer. Bespok3d owns installation,
+rollback, Python dependencies, the Klipper extra, and its config include.
 
-- Motion: CoreXY X and Y, whose TMC2240 drivers are tuned together. Upgraded
-  LDO-42STH48-2504MACF 0.9-degree motors are supported when both `[stepper_x]`
-  and `[stepper_y]` declare `full_steps_per_rotation: 400`.
-- Z: not supported and never modified.
-- Toolhead extruders: not supported and never modified.
-- Accelerometer: the stock `lis2dw e0_lis2dw` configuration; the macro passes
-  its Klipper mux name, `e0_lis2dw`.
-- Driver clock: 12.5 MHz, matching the U1 Klipper TMC2240 implementation.
-- Reports: standalone HTML under
-  `/userdata/gcodes/shaper_calibrate/chopper_magnitude`.
+## Compatibility
 
-The package installs one Klipper extra, one Klipper config fragment, and one
-system executable. It does not install apt packages, wheels, a venv, or a
-Moonraker update manager.
+- CoreXY X/Y only. `AXIS=X` isolates `stepper_x` (logical A) with diagonal
+  motion; `AXIS=Y` isolates `stepper_y` (logical B).
+- TMC2240 at the U1's 12.5 MHz driver clock.
+- Stock 1.8-degree motors (Klipper default: 200 full steps/revolution).
+- Upgraded 0.9-degree motors when **both** `[stepper_x]` and `[stepper_y]`
+  declare `full_steps_per_rotation: 400`.
+- Firmware 1.5's direct `lis2dw e0_lis2dw` name.
+- Firmware 1.6+ and 2.0's
+  `sensor_accelerometer_identify e0_accelerometer`, including either detected
+  LIS2DW or SC7A20 hardware.
 
-## Important safety behavior
+The tuner refuses Z, mismatched X/Y motor resolutions, unsupported
+kinematics, an unidentified sensor, or a missing supported TMC driver.
 
-`CHOPPER_TUNE` repeatedly changes live TMC2240 chopper registers and can also
-change motor current when explicitly requested. A completed or interrupted run
-can leave the last test values active. **Restart Klipper after every run or
-abort, before homing again or printing.** A restart restores the values from
-the active driver configuration (and reruns TMC Autotune when that plugin is
-installed).
+## Safety behavior
 
-The broad upstream register sweep can take about two hours and may consume
-hundreds of megabytes in `/tmp`. Start with resonance-speed discovery and then
-use narrow explicit register ranges. Never tune while a print is active.
+`CHOPPER_TUNE` changes one CoreXY motor driver's live current and chopper
+registers while it measures. A completed or interrupted run can leave those
+test values active. **Restart Klipper after every run or abort before homing
+again or printing.** The restart restores the managed configuration and reruns
+TMC Autotune when installed.
 
-## Prepare
+The plugin saves plots and JSON data under
+`/userdata/gcodes/shaper_calibrate/chopper_magnitude`. It does not write a
+winning combination into `printer.cfg` unless `allow_save_config: True` is
+deliberately enabled. Keep the default `False` until a result has been reviewed
+and validated.
 
-1. Make sure no print is running, the bed and toolheads are cool, and the full
-   X/Y travel area is clear.
-2. Dock toolhead 0 so `e0_lis2dw` is present and responsive.
-3. Keep access to the power switch. Listen for grinding, harsh squeal, or lost
-   steps and cut power immediately if motion becomes abnormal.
-4. Record the starting state:
+## Before every run
+
+1. Stop any print, cool the machine, clear the full X/Y envelope, and dock
+   toolhead 0.
+2. Confirm Klipper is Ready and the accelerometer responds.
+3. Record both drivers with:
 
    ```gcode
    DUMP_TMC STEPPER=stepper_x
    DUMP_TMC STEPPER=stepper_y
    ```
 
-## Install
+4. Keep access to the power switch. Stop immediately for grinding, harsh
+   squeal, lost steps, abnormal heat, or driver errors.
 
-1. In Bespok3d Desktop, drag in
-   `u1-chopper-resonance-tuner-0.1.0-u1.3.b3`.
-2. Review the permissions: one Klipper extra, one config fragment, one system
-   executable, and a Klipper restart.
-3. Install it and wait for Klipper to report **Ready**.
-4. Confirm `CHOPPER_TUNE` appears in the web console.
+## Resonance discovery with the static driver config
 
-## Calibrate conservatively
+With TMC Autotune disabled, the tuner reads `run_current`, `driver_TBL`,
+`driver_TOFF`, `driver_HSTRT`, `driver_HEND`, and `driver_TPFD` from the active
+TMC2240 configuration. For the LDO-42STH48-2503MAC motors, first confirm both
+CoreXY steppers declare:
 
-Discover resonant speeds separately for each movement axis:
-
-```gcode
-CHOPPER_TUNE AXIS=X FIND_VIBRATIONS=1
+```ini
+full_steps_per_rotation: 400
 ```
 
-If TMC Autotune is installed, its live register values are not visible through
-Klipper's static configuration object. Read the live values with `DUMP_TMC`,
-then pin them explicitly during discovery. Only each `_MIN` parameter is needed
-when testing one fixed value. For the LDO profile with TBL=1, TOFF=5, HSTRT=7,
-HEND=9, and TPFD=2, use:
+Then run:
 
 ```gcode
-CHOPPER_TUNE AXIS=X FIND_VIBRATIONS=1 TBL_MIN=1 TOFF_MIN=5 HSTRT_MIN=7 HEND_MIN=9 TPFD_MIN=2
+CHOPPER_TUNE AXIS=X FIND_RESONANCES=true
 ```
 
-The tuner does not write MRES, INTPOL, or DEDGE, so the live values established
-by the active Klipper/TMC Autotune configuration remain in effect.
+Restart Klipper after the output files are written, then repeat with
+`AXIS=Y`. Check the startup summary: it should show the same current and
+chopper values as the corresponding static TMC2240 section.
 
-Restart Klipper, confirm **Ready**, then repeat with `AXIS=Y`. Download the
-`sorted_interactive_plot_*.html` reports from the U1 gcode storage and choose a
-low resonant speed to investigate.
+If TMC Autotune or another runtime tuner is enabled later, static config cannot
+describe its live changes. In that case, read `DUMP_TMC` and pass
+`CURRENT_MIN_MA` plus one `*_MIN` argument for each live field. `MRES`,
+`INTPOL`, and `DEDGE` are never modified by this tuner.
 
-For the first register test, hold all fields at their configured defaults and
-confirm the end-to-end workflow. The stock U1 Klipper TMC2240 defaults are
-TBL=2, TOFF=3, HSTRT=5, HEND=2, and TPFD=4:
+The automatic speed calculation retains a one-millimetre boundary margin, so
+it does not reproduce the former 251.00 mm floating-point travel failure.
+
+## Narrow register tuning
+
+Choose a low-vibration speed from discovery and start with one combination.
+Copy the current and register values printed in the discovery startup summary
+into this template (replace every angle-bracket value):
 
 ```gcode
-CHOPPER_TUNE AXIS=X MIN_SPEED=55 MAX_SPEED=55 TBL_MIN=2 TBL_MAX=2 TOFF_MIN=3 TOFF_MAX=3 HSTRT_MIN=5 HSTRT_MAX=5 HEND_MIN=2 HEND_MAX=2 TPFD_MIN=4 TPFD_MAX=4
+CHOPPER_TUNE AXIS=X FIND_RESONANCES=false SEARCH_METHOD=progressive MIN_SPEED=<speed> MAX_SPEED=<speed> CURRENT_MIN_MA=<current> CURRENT_MAX_MA=<current> TBL_MIN=<tbl> TBL_MAX=<tbl> TOFF_MIN=<toff> TOFF_MAX=<toff> HSTRT_MIN=<hstrt> HSTRT_MAX=<hstrt> HEND_MIN=<hend> HEND_MAX=<hend> TPFD_MIN=<tpfd> TPFD_MAX=<tpfd>
 ```
 
-Restart Klipper after the report is written. Expand only one small range at a
-time. Repeat for Y because X and Y movement load the shared CoreXY motors
-differently, even though each test writes the paired drivers together.
+After that succeeds, expand only small ranges and one family of fields at a
+time. The upstream progressive search is much smaller than a full brute-force
+sweep, but the number of measurements can still grow quickly.
 
-## Applying a result
-
-This package measures candidates; it intentionally does not make a winning
-combination persistent. If the separate U1 TMC Autotune package is installed,
-you can validate a candidate at runtime with its `AUTOTUNE_TMC` command. A raw
-`SET_TMC_FIELD` write is also temporary. Persistence belongs in the
-Bespok3d-managed driver/autotune configuration, not in this tuner's generated
-files.
-
-Change one field at a time, re-home carefully, and validate low-speed motion
-before raising acceleration. Do not keep a combination based only on the
-smallest bar: reject settings that cause unpleasant noise, driver warnings,
-heat, unreliable sensorless homing, or lost steps.
+Restart Klipper between X and Y and after any abort. Evaluate noise, heat,
+homing reliability, and lost steps—not only the smallest graph bar—before
+transferring a result into your managed TMC2240 configuration.
 
 ## Recovery
 
-- After a normal run: restart Klipper and confirm **Ready**.
-- After an abort or web disconnect: restart Klipper before any movement.
-- If Klipper will not become ready: uninstall or disable this package in
-  Bespok3d; its rollback removes the owned extra, config, and executable.
-- If motion is abnormal after restart: power off, inspect the mechanics, and
-  compare fresh `DUMP_TMC` output with the starting record.
+- Normal completion or abort: restart Klipper and wait for Ready.
+- Sensor-identification error: dock toolhead 0, restart, and retest the
+  accelerometer.
+- Klipper will not become ready: disable or uninstall this Bespok3d package;
+  rollback removes its extra, config, and reversible Python package links.
+- Motion remains abnormal after restart: power off, inspect the mechanics, and
+  compare new `DUMP_TMC` output with the record taken before tuning.
 
-## Sources
+## Upstream and firmware references
 
-- [Chopper Resonance Tuner upstream](https://github.com/MRX8024/chopper-resonance-tuner)
-- [Klipper TMC2240 configuration reference](https://www.klipper3d.org/Config_Reference.html#tmc2240)
+- [CoreXY Chopper Resonance Tuner fork](https://github.com/eoyilmaz/chopper-resonance-tuner)
+- [Snapmaker U1 Klipper](https://github.com/Snapmaker/u1-klipper)
+- [Snapmaker U1 Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware)
 - [Bespok3d](https://bespok3d.org/)

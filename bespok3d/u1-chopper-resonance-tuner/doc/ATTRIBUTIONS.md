@@ -2,9 +2,12 @@
 
 | Component | Copyright and author | Licence | Relationship to this package |
 | --- | --- | --- | --- |
-| Chopper Resonance Tuner | Copyright (C) 2024 Alexander Fedorov and Maksim Bolgov | GPL-3.0-only | `chopper_tune.cfg` and the report workflow are derived from upstream commit `1f98212ca9dbfdf15d516115dd4c26e97b914a8d` |
-| gcode_shell_command | Copyright (C) 2019 Eric Callahan | GPL-3.0-only | Bundled upstream Klipper extra used to invoke the on-printer report generator |
-| Snapmaker U1 adaptation | Copyright (C) 2026 Snapmaker U1 adaptation contributors | GPL-3.0-only | Adds Bespok3d packaging, U1-specific TMC2240 and LIS2DW behavior, a standard-library report generator, tests, and documentation |
+| Chopper Resonance Tuner | Copyright (C) 2024 Alexander Fedorov and Maksim Bolgov; CoreXY fork maintained by Erkan Ozgur Yilmaz | GPL-3.0-only | `chopper_tune.py`, config, tests, and user guidance are adapted from upstream commit `7e95549c2863b86340aba6eab35c8635675e0584` |
+| Snapmaker U1 adaptation | Copyright (C) 2026 Snapmaker U1 adaptation contributors | GPL-3.0-only | Bespok3d packaging, U1 firmware and accelerometer compatibility, TMC Autotune safeguards, tests, and documentation |
+| NumPy | NumPy Developers | BSD-3-Clause | Baked runtime dependency used for sample processing |
+| SciPy | SciPy Developers | BSD-3-Clause | Baked runtime dependency used for filtering and optimization |
+| Plotly.py | Plotly, Inc. | MIT | Baked runtime dependency used to generate interactive reports |
 
-The complete combined package is distributed under GPL-3.0-only. No third-party
-Python packages, wheels, or system libraries are bundled.
+The baked dependency payload retains package metadata and licence files from
+the published wheels, including notices for transitive dependencies and
+libraries bundled by those wheels.

@@ -18,9 +18,27 @@ jobs:
         with:
           repository: Snapmaker/u1-klipper
           path: u1-klipper
+      - name: Check out U1 2.0 firmware contract
+        uses: actions/checkout@v4
+        with:
+          repository: paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware
+          ref: develop
+          path: u1-extended
       - name: Verify U1 compatibility
         env:
           U1_KLIPPER_ROOT: ${{ github.workspace }}/u1-klipper
+          U1_EXTENDED_ROOT: ${{ github.workspace }}/u1-extended
         run: python3 tests/verify_u1_compatibility.py
-      - name: Stage Bespok3d package
-        run: python3 scripts/stage_bespok3d.py
+      - name: Run upstream CoreXY unit tests
+        run: |
+          python3 -m pip install pytest numpy==1.26.4 scipy==1.11.4
+          PYTHONPATH="${{ github.workspace }}/u1-klipper/klippy" python3 -m pytest tests/test_coord.py tests/test_coordinate_generator.py tests/test_measure_mode.py tests/test_search_method.py tests/test_u1_adapter.py
+      - name: Build baked Bespok3d package
+        uses: Bespok3d/b3-builder@45ddfbb886f647a0e8f74228f5a720b33d344f6b
+        with:
+          unit: plugin
+          source: dist/u1-chopper-resonance-tuner
+          out: artifacts
+          atom-repo: ${{ github.repository }}
+          bake: 'true'
+          publish: 'false'

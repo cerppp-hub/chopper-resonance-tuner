@@ -1,23 +1,22 @@
 {
   "name": "u1-chopper-resonance-tuner",
   "title": "Chopper Resonance Tuner for Snapmaker U1",
-  "version": "0.1.0-u1.3",
-  "sw_version": "git.1f98212+u1.3",
-  "author": "Alexander Fedorov and Maksim Bolgov; Snapmaker U1 adaptation contributors",
-  "description": "Packages Chopper Resonance Tuner for the Snapmaker U1 CoreXY motion system, including correctly configured 0.9-degree LDO X/Y motors. It calibrates the paired TMC2240 drivers with the stock LIS2DW accelerometer, uses the U1's 12.5 MHz driver clock, and creates standalone HTML reports without installing Python packages on the printer.",
-  "tagline": "Measure U1 X/Y chopper settings with the stock accelerometer.",
+  "version": "0.2.0-u1.0",
+  "sw_version": "git.7e95549+u1.0",
+  "author": "Alexander Fedorov, Maksim Bolgov, Erkan Ozgur Yilmaz; Snapmaker U1 adaptation contributors",
+  "description": "CoreXY-aware Chopper Resonance Tuner for Snapmaker U1 firmware 1.6 through 2.0. It isolates the X and Y TMC2240 motors with diagonal motion, supports the LDO-42STH48-2503MAC 0.9-degree upgrade, resolves both legacy and auto-identified toolhead accelerometers, and uses the U1's 12.5 MHz driver clock.",
+  "tagline": "Tune either U1 CoreXY motor with the detected toolhead accelerometer.",
   "category": "tuning",
   "channel": "experiment",
   "printer_specific": true,
   "changelog": "doc/CHANGELOG.md",
   "published_at": "2026-08-16",
-  "updated_at": "2026-08-16",
+  "updated_at": "2026-09-30",
   "min_daemon_version": "0.10.33",
   "source": "https://github.com/cerppp-hub/chopper-resonance-tuner/tree/snapmaker-u1",
   "publisher": "PLACEHOLDER",
   "provides": [
-    { "service": "u1-chopper-resonance-tuning" },
-    { "service": "gcode-shell-command" }
+    { "service": "u1-chopper-resonance-tuning" }
   ],
   "require": [],
   "conflicts": [],
@@ -26,18 +25,17 @@
     "variables": []
   },
   "config": [],
-  "permissions": ["klipper-extra", "klipper-config", "system-bin", "restart"],
+  "permissions": ["klipper-extra", "klipper-config", "restart"],
   "install": {
     "place": [
-      { "class": "klipper-extra", "src": "files/klipper/klippy/extras/gcode_shell_command.py" },
-      { "class": "klipper-config", "src": "files/cfg/klipper/u1-chopper-resonance-tuner.cfg" },
-      { "class": "system-bin", "src": "files/bin/u1-chopper-plot" }
+      { "class": "klipper-extra", "src": "files/klipper/klippy/extras/chopper_tune.py" },
+      { "class": "klipper-config", "src": "files/cfg/klipper/u1-chopper-resonance-tuner.cfg" }
     ],
     "restart": ["klipper"]
   },
   "endpoints": [],
   "conflict_resolutions": [],
   "files": [],
-  "license": "https://github.com/MRX8024/chopper-resonance-tuner/blob/main/LICENSE.txt",
-  "attributions": "Chopper Resonance Tuner and the bundled gcode_shell_command extra are GPL-3.0-licensed upstream work by their named authors. The Snapmaker U1 adaptation adds Bespok3d packaging, U1-specific CoreXY/TMC2240/LIS2DW behavior, a dependency-free report generator, compatibility tests, and safety documentation. Complete corresponding source is available in the public fork."
+  "license": "https://github.com/eoyilmaz/chopper-resonance-tuner/blob/main/LICENSE.txt",
+  "attributions": "Chopper Resonance Tuner is GPL-3.0-licensed upstream work by Alexander Fedorov, Maksim Bolgov, and Erkan Ozgur Yilmaz. The Snapmaker U1 adaptation adds Bespok3d packaging, firmware 1.6+/2.0 accelerometer resolution, U1-specific CoreXY/TMC2240 behavior, TMC Autotune-safe defaults, compatibility tests, and safety documentation. Bundled Python dependencies retain their own licence notices. Complete corresponding source is available in the public fork."
 }

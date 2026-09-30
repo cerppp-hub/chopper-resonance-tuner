@@ -19,19 +19,18 @@ def stage() -> Path:
 
     extra_dir = STAGE_ROOT / "files" / "klipper" / "klippy" / "extras"
     config_dir = STAGE_ROOT / "files" / "cfg" / "klipper"
-    bin_dir = STAGE_ROOT / "files" / "bin"
     extra_dir.mkdir(parents=True, exist_ok=True)
     config_dir.mkdir(parents=True, exist_ok=True)
-    bin_dir.mkdir(parents=True, exist_ok=True)
 
-    shutil.copy2(REPO_ROOT / "gcode_shell_command.py", extra_dir)
+    shutil.copy2(REPO_ROOT / "chopper_tune.py", extra_dir)
     shutil.copy2(
         REPO_ROOT / "chopper_tune.cfg",
         config_dir / "u1-chopper-resonance-tuner.cfg",
     )
-    plotter = bin_dir / "u1-chopper-plot"
-    shutil.copy2(REPO_ROOT / "chopper_plot.py", plotter)
-    plotter.chmod(0o755)
+    shutil.copy2(
+        REPO_ROOT / "klipper_requirements.txt",
+        STAGE_ROOT / "klipper_requirements.txt",
+    )
 
     shutil.copy2(REPO_ROOT / "LICENSE.txt", STAGE_ROOT / "doc" / "LICENSE")
     shutil.copy2(
