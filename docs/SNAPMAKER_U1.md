@@ -66,12 +66,12 @@ full_steps_per_rotation: 400
 Then run:
 
 ```gcode
-CHOPPER_TUNE AXIS=X FIND_RESONANCES=true
+U1_CHOPPER_FIND_X_RESONANCES
 ```
 
 Restart Klipper after the output files are written, then repeat with
-`AXIS=Y`. Check the startup summary: it should show the same current and
-chopper values as the corresponding static TMC2240 section.
+`U1_CHOPPER_FIND_Y_RESONANCES`. Check the startup summary: it should show the
+same current and chopper values as the corresponding static TMC2240 section.
 
 If TMC Autotune or another runtime tuner is enabled later, static config cannot
 describe its live changes. In that case, read `DUMP_TMC` and pass
@@ -88,7 +88,7 @@ Copy the current and register values printed in the discovery startup summary
 into this template (replace every angle-bracket value):
 
 ```gcode
-CHOPPER_TUNE AXIS=X FIND_RESONANCES=false SEARCH_METHOD=progressive MIN_SPEED=<speed> MAX_SPEED=<speed> CURRENT_MIN_MA=<current> CURRENT_MAX_MA=<current> TBL_MIN=<tbl> TBL_MAX=<tbl> TOFF_MIN=<toff> TOFF_MAX=<toff> HSTRT_MIN=<hstrt> HSTRT_MAX=<hstrt> HEND_MIN=<hend> HEND_MAX=<hend> TPFD_MIN=<tpfd> TPFD_MAX=<tpfd>
+U1_CHOPPER_TUNE_X SEARCH_METHOD=progressive MIN_SPEED=<speed> MAX_SPEED=<speed> CURRENT_MIN_MA=<current> CURRENT_MAX_MA=<current> TBL_MIN=<tbl> TBL_MAX=<tbl> TOFF_MIN=<toff> TOFF_MAX=<toff> HSTRT_MIN=<hstrt> HSTRT_MAX=<hstrt> HEND_MIN=<hend> HEND_MAX=<hend> TPFD_MIN=<tpfd> TPFD_MAX=<tpfd>
 ```
 
 After that succeeds, expand only small ranges and one family of fields at a
@@ -98,6 +98,20 @@ sweep, but the number of measurements can still grow quickly.
 Restart Klipper between X and Y and after any abort. Evaluate noise, heat,
 homing reliability, and lost steps—not only the smallest graph bar—before
 transferring a result into your managed TMC2240 configuration.
+
+## Installed macros
+
+- `U1_CHOPPER_FIND_X_RESONANCES [optional CHOPPER_TUNE parameters]`
+- `U1_CHOPPER_FIND_Y_RESONANCES [optional CHOPPER_TUNE parameters]`
+- `U1_CHOPPER_TUNE_X MIN_SPEED=... MAX_SPEED=... [other parameters]`
+- `U1_CHOPPER_TUNE_Y MIN_SPEED=... MAX_SPEED=... [other parameters]`
+
+The macros appear as workflow buttons in compatible UIs. They forward optional
+parameters but append their own axis and mode last, so an X button cannot be
+redirected to Y and a discovery button cannot become a register sweep. All
+four refuse to run while a print is active or paused. The underlying
+`CHOPPER_TUNE` and `CHOPPER_TUNE_DEBUG` Python commands remain available for
+advanced use.
 
 ## Recovery
 

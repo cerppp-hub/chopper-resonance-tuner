@@ -1,8 +1,8 @@
 {
   "name": "u1-chopper-resonance-tuner",
   "title": "Chopper Resonance Tuner for Snapmaker U1",
-  "version": "0.2.0-u1.1",
-  "sw_version": "git.7e95549+u1.1",
+  "version": "0.2.0-u1.2",
+  "sw_version": "git.7e95549+u1.2",
   "author": "Alexander Fedorov, Maksim Bolgov, Erkan Ozgur Yilmaz; Snapmaker U1 adaptation contributors",
   "description": "CoreXY-aware Chopper Resonance Tuner for Snapmaker U1 firmware 1.6 through 2.0. It isolates the X and Y TMC2240 motors with diagonal motion, supports the LDO-42STH48-2503MAC 0.9-degree upgrade, resolves both legacy and auto-identified toolhead accelerometers, and uses the U1's 12.5 MHz driver clock.",
   "tagline": "Tune either U1 CoreXY motor with the detected toolhead accelerometer.",

@@ -40,8 +40,8 @@ def compile_python() -> None:
 def verify_manifest() -> None:
     manifest = json.loads((PACKAGE_ROOT / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["name"] == "u1-chopper-resonance-tuner"
-    assert manifest["version"] == "0.2.0-u1.1"
-    assert manifest["sw_version"] == "git.7e95549+u1.1"
+    assert manifest["version"] == "0.2.0-u1.2"
+    assert manifest["sw_version"] == "git.7e95549+u1.2"
     assert manifest["channel"] == "experiment"
     assert manifest["install"]["restart"] == ["klipper"]
     assert manifest["requires"]["variables"] == []
@@ -94,16 +94,30 @@ def verify_plugin_source() -> None:
 
 
 def verify_plugin_config() -> None:
+    config_path = REPO_ROOT / "chopper_tune.cfg"
     require_text(
-        REPO_ROOT / "chopper_tune.cfg",
+        config_path,
         (
             "[chopper_tune]",
             "boundary_margin: 1.0",
             "fclk: 12.5",
             "results_path: /userdata/gcodes/shaper_calibrate/chopper_magnitude",
             "allow_save_config: False",
+            "[gcode_macro U1_CHOPPER_FIND_X_RESONANCES]",
+            "[gcode_macro U1_CHOPPER_FIND_Y_RESONANCES]",
+            "[gcode_macro U1_CHOPPER_TUNE_X]",
+            "[gcode_macro U1_CHOPPER_TUNE_Y]",
+            "CHOPPER_TUNE {rawparams} AXIS=X FIND_RESONANCES=true",
+            "CHOPPER_TUNE {rawparams} AXIS=Y FIND_RESONANCES=true",
+            "CHOPPER_TUNE {rawparams} AXIS=X FIND_RESONANCES=false",
+            "CHOPPER_TUNE {rawparams} AXIS=Y FIND_RESONANCES=false",
+            'state in ["printing", "paused"]',
+            '"MIN_SPEED" not in params or "MAX_SPEED" not in params',
         ),
     )
+    config_text = config_path.read_text(encoding="utf-8")
+    assert config_text.count("[gcode_macro U1_CHOPPER_") == 4
+    assert config_text.count("Restart Klipper after completion or abort") == 4
 
 
 def verify_u1_firmware_contract() -> None:

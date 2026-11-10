@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0-u1.2 - 2026-11-11
+
+- Add visible U1 macros for X/Y resonance discovery and X/Y register tuning
+  while retaining the newer Python-native CoreXY motor-isolation engine.
+- Forward optional current, register, search, plotting, and travel parameters
+  to `CHOPPER_TUNE`, but lock each wrapper to its named CoreXY motor and mode.
+- Block every workflow during active or paused prints, require explicit
+  `MIN_SPEED` and `MAX_SPEED` for register tuning, and remind the operator to
+  restart Klipper after completion or abort.
+
 ## 0.2.0-u1.1 - 2026-11-11
 
 - Normalize Windows path separators in the generated `files[]` inventory so

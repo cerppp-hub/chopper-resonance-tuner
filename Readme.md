@@ -24,7 +24,7 @@ U1's gcode-visible storage.
 
 ## Installation
 
-Build or download `u1-chopper-resonance-tuner-0.2.0-u1.1.b3`, then drag it into
+Build or download `u1-chopper-resonance-tuner-0.2.0-u1.2.b3`, then drag it into
 Bespok3d Desktop and install it on the printer. Do not use an upstream shell
 installer, `apt`, or on-printer `pip`.
 
@@ -44,10 +44,10 @@ With the LDO motors configured at 400 full steps/revolution and TMC Autotune
 disabled, resonance discovery reads the active static TMC2240 values directly:
 
 ```gcode
-CHOPPER_TUNE AXIS=X FIND_RESONANCES=true
+U1_CHOPPER_FIND_X_RESONANCES
 ```
 
-Repeat on `AXIS=Y`, restarting Klipper between runs. The tuner keeps a
+Restart Klipper, then run `U1_CHOPPER_FIND_Y_RESONANCES`. The tuner keeps a
 one-millimetre movement margin and will not hit the former 251.00 mm automatic
 travel calculation.
 
