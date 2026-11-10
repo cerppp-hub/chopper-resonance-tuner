@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import os
+import tempfile
+import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -37,8 +40,8 @@ def compile_python() -> None:
 def verify_manifest() -> None:
     manifest = json.loads((PACKAGE_ROOT / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["name"] == "u1-chopper-resonance-tuner"
-    assert manifest["version"] == "0.2.0-u1.0"
-    assert manifest["sw_version"] == "git.7e95549+u1.0"
+    assert manifest["version"] == "0.2.0-u1.1"
+    assert manifest["sw_version"] == "git.7e95549+u1.1"
     assert manifest["channel"] == "experiment"
     assert manifest["install"]["restart"] == ["klipper"]
     assert manifest["requires"]["variables"] == []
@@ -188,6 +191,38 @@ def verify_staging() -> None:
     assert not (stage_root / "files" / "bin").exists()
 
 
+def verify_windows_archive_normalizer() -> None:
+    payload = b"test payload\n"
+    manifest = {
+        "files": [
+            {
+                "path": "files\\cfg\\klipper\\test.cfg",
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "mode": "644",
+            }
+        ]
+    }
+    (REPO_ROOT / "dist").mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=REPO_ROOT / "dist") as temporary:
+        package = Path(temporary) / "windows-paths.b3"
+        with zipfile.ZipFile(package, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("files/cfg/klipper/test.cfg", payload)
+            archive.writestr("manifest.json", json.dumps(manifest))
+
+        spec = importlib.util.spec_from_file_location(
+            "normalize_windows_b3",
+            REPO_ROOT / "scripts" / "normalize_windows_b3.py",
+        )
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.normalize(package)
+
+        with zipfile.ZipFile(package, "r") as archive:
+            normalized = json.loads(archive.read("manifest.json"))
+        assert normalized["files"][0]["path"] == "files/cfg/klipper/test.cfg"
+
+
 if __name__ == "__main__":
     compile_python()
     verify_manifest()
@@ -196,4 +231,5 @@ if __name__ == "__main__":
     verify_u1_firmware_contract()
     verify_extended_2_contract()
     verify_staging()
+    verify_windows_archive_normalizer()
     print("Snapmaker U1 1.6+/2.0 Chopper Resonance Tuner contract verified")

@@ -24,7 +24,7 @@ U1's gcode-visible storage.
 
 ## Installation
 
-Build or download `u1-chopper-resonance-tuner-0.2.0-u1.0.b3`, then drag it into
+Build or download `u1-chopper-resonance-tuner-0.2.0-u1.1.b3`, then drag it into
 Bespok3d Desktop and install it on the printer. Do not use an upstream shell
 installer, `apt`, or on-printer `pip`.
 
@@ -63,6 +63,11 @@ transfer a result deliberately.
 `scripts/stage_bespok3d.py` creates the canonical Bespok3d source directory in
 `dist/`. Building requires the Bespok3d builder's `--bake` mode because the
 Klipper extension imports NumPy, SciPy, and Plotly.
+
+After a native Windows build, run
+`python scripts/normalize_windows_b3.py <package.b3>`. It converts manifest
+paths to ZIP-standard forward slashes and refuses the package if its declared
+inventory or checksums do not exactly match the archive.
 
 The U1 contract test checks the current official U1 Klipper sensor selector,
 both supported accelerometer drivers, the 12.5 MHz TMC clock, the extended 2.0

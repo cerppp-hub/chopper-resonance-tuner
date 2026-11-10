@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Correct executable metadata after a b3-builder run on native Windows.
+"""Normalize a b3-builder archive produced on native Windows.
 
-NTFS does not expose POSIX execute bits to Node's stat(), so b3-builder records
-files/bin entries as 644 on native Windows. Linux CI does not need this helper.
+Node reports relative paths with backslashes on Windows while ZIP member names
+always use forward slashes. Bespok3d compares these names exactly, so a package
+whose manifest retains backslashes is correctly rejected as containing
+undeclared files. Linux CI does not need this helper.
 """
 
 from __future__ import annotations
@@ -30,13 +32,7 @@ def normalize(package: Path) -> None:
                 if item.get("path") != normalized:
                     item["path"] = normalized
                     changed = True
-                if normalized == "files/bin/u1-chopper-plot" and item.get("mode") != "755":
-                    item["mode"] = "755"
-                    changed = True
             payload = (json.dumps(manifest, indent=2) + "\n").encode()
-        if entry.filename == "files/bin/u1-chopper-plot":
-            entry.create_system = 3
-            entry.external_attr = (0o100755 & 0xFFFF) << 16
         rewritten.append((entry, payload))
 
     if not changed:
@@ -72,9 +68,6 @@ def verify(package: Path) -> None:
             digest = hashlib.sha256(archive.read(name)).hexdigest()
             if digest != entry.get("sha256"):
                 raise ValueError(f"sha256 mismatch for {name}")
-        executable = declared.get("files/bin/u1-chopper-plot", {})
-        if executable.get("mode") != "755":
-            raise ValueError("u1-chopper-plot is not marked executable")
 
 
 if __name__ == "__main__":

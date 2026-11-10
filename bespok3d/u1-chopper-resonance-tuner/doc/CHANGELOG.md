@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0-u1.1 - 2026-11-11
+
+- Normalize Windows path separators in the generated `files[]` inventory so
+  every ZIP member exactly matches its declared signed-content path.
+- Add archive verification after normalization to prevent another package
+  containing undeclared or checksum-mismatched files from being distributed.
+
 ## 0.2.0-u1.0 - 2026-09-30
 
 - Rebase the plugin on eoyilmaz's CoreXY motor-isolation fork at commit
