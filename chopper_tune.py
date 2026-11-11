@@ -648,11 +648,20 @@ class ChopperTune:
 
         return axes, steppers
 
-    def get_axis_limits(self, axes: list[str]) -> tuple[float, float, float, float]:
+    def get_axis_limits(
+        self,
+        axes: list[str],
+        requested_min: None | float = None,
+        requested_max: None | float = None,
+    ) -> tuple[float, float, float, float]:
         """Select main and secondary axis / stepper.
 
         Args:
             axes (list[str]): The main and secondary axis.
+            requested_min (None | float): Optional conservative minimum
+                coordinate for the main physical axis.
+            requested_max (None | float): Optional conservative maximum
+                coordinate for the main physical axis.
 
         Returns:
             tuple[float, float, float, float]: A tuple containing:
@@ -661,27 +670,46 @@ class ChopperTune:
                 - a_axis_mid (float): The middle position of the main axis.
                 - b_axis_mid (float): The middle position of the secondary axis.
         """
-        if axes[0] == "z":
-            a_axis_min = (
-                max(self.stepper_settings[f"stepper_{axes[0]}"]["position_min"], 0)
-                + self.inset
+        axis_settings = self.stepper_settings[f"stepper_{axes[0]}"]
+        machine_min = float(axis_settings["position_min"]) + self.inset
+        machine_max = float(axis_settings["position_max"]) - self.inset
+        a_axis_min = machine_min if requested_min is None else float(requested_min)
+        a_axis_max = machine_max if requested_max is None else float(requested_max)
+
+        if a_axis_min < machine_min or a_axis_max > machine_max:
+            raise self.printer.command_error(
+                f"AXIS_MIN/AXIS_MAX for {axes[0].upper()} must remain inside "
+                f"the inset-safe machine window {machine_min:.2f} to "
+                f"{machine_max:.2f} mm"
             )
-        else:
-            a_axis_min = (
-                self.stepper_settings[f"stepper_{axes[0]}"]["position_min"] + self.inset
+        if a_axis_min >= a_axis_max:
+            raise self.printer.command_error(
+                f"AXIS_MIN ({a_axis_min:.2f}) must be less than AXIS_MAX "
+                f"({a_axis_max:.2f}) for {axes[0].upper()}"
             )
 
-        a_axis_max = (
-            self.stepper_settings[f"stepper_{axes[0]}"]["position_max"] - self.inset
-        )
-        a_axis_mid = (
-            self.stepper_settings[f"stepper_{axes[0]}"]["position_max"]
-            + self.stepper_settings[f"stepper_{axes[0]}"]["position_min"]
-        ) / 2
+        a_axis_mid = (a_axis_max + a_axis_min) / 2
         b_axis_mid = (
             self.stepper_settings[f"stepper_{axes[1]}"]["position_max"]
             + self.stepper_settings[f"stepper_{axes[1]}"]["position_min"]
         ) / 2
+        secondary_settings = self.stepper_settings[f"stepper_{axes[1]}"]
+        secondary_span = (
+            float(secondary_settings["position_max"])
+            - float(secondary_settings["position_min"])
+            - (2 * self.inset)
+        )
+        # A CoreXY isolation move is diagonal. Limit its scalar path against
+        # both physical axes even if a future U1 configuration has a smaller
+        # secondary travel envelope.
+        self.axis_travel_limit = min(
+            a_axis_max - a_axis_min,
+            (2.0**0.5) * min(a_axis_max - a_axis_min, secondary_span),
+        )
+        self.gcode.respond_info(
+            f"Using {axes[0].upper()} safety window: "
+            f"{a_axis_min:.2f} to {a_axis_max:.2f} mm"
+        )
         return a_axis_min, a_axis_max, a_axis_mid, b_axis_mid
 
     def get_travel_speed_and_acceleration(self, axes: list[str]) -> tuple[float, float]:
@@ -1028,11 +1056,14 @@ class ChopperTune:
                                 (acceleration * measure_time) ** 2
                                 + 4
                                 * acceleration
-                                * (
-                                    a_axis_max
-                                    - a_axis_min
-                                    - self.boundary_margin
+                            * (
+                                getattr(
+                                    self,
+                                    "axis_travel_limit",
+                                    a_axis_max - a_axis_min,
                                 )
+                                - self.boundary_margin
+                            )
                             )
                             ** 0.5
                         )
@@ -1101,7 +1132,14 @@ class ChopperTune:
         # acceleration and time
         accel_decel_distance = max_speed**2 / acceleration
         auto_travel_distance = accel_decel_distance + (max_speed * measure_time)
-        available_distance = a_axis_max - a_axis_min - self.boundary_margin
+        available_distance = (
+            getattr(
+                self,
+                "axis_travel_limit",
+                a_axis_max - a_axis_min,
+            )
+            - self.boundary_margin
+        )
         distance_epsilon = 1.0e-6
         if self.debug:
             self.gcode.respond_info(
@@ -1432,6 +1470,8 @@ class ChopperTune:
         speed_change_step: None | int = None,
         search_method: SearchMethod = SearchMethod.BruteForce,
         travel_distance: None | int = None,
+        axis_min: None | float = None,
+        axis_max: None | float = None,
         direction: int = 1,
         accel_chip_name: str = "default",
         run_plotter: bool = True,
@@ -1470,6 +1510,10 @@ class ChopperTune:
             travel_distance (None | int): The travel distance, or can be set to
                 None to calculate the travel distance with the
                 `measure_time`, `max_speed` and `accel_decel_distance`.
+            axis_min (None | float): Conservative minimum coordinate for the
+                selected physical axis.
+            axis_max (None | float): Conservative maximum coordinate for the
+                selected physical axis.
             direction (int): The movement direction, can be 1 or -1.
                 1 means starting from the minimum position to maximum position,
                 -1 means starting from the maximum position to minimum position.
@@ -1555,7 +1599,9 @@ class ChopperTune:
             f"{next(iter(full_steps.values()))} full steps/revolution"
         )
 
-        a_axis_min, a_axis_max, a_axis_mid, b_axis_mid = self.get_axis_limits(axes)
+        a_axis_min, a_axis_max, a_axis_mid, b_axis_mid = self.get_axis_limits(
+            axes, axis_min, axis_max
+        )
         acceleration, self.travel_speed = self.get_travel_speed_and_acceleration(axes)
         configured_accel_name = self.get_accelerometer_chip(accel_chip_name, axis)
         accel_chip_name, self.accelerometer = self.resolve_accelerometer(
@@ -2516,6 +2562,8 @@ class ChopperTune:
             speed_change_step = gcmd.get_float("SPEED_CHANGE_STEP", None)
             self.iterations = gcmd.get_int("ITERATIONS", 1)
             travel_distance = gcmd.get_float("TRAVEL_DISTANCE", None)
+            axis_min = gcmd.get_float("AXIS_MIN", None)
+            axis_max = gcmd.get_float("AXIS_MAX", None)
             accel_chip_name = gcmd.get("ACCELEROMETER", "default").lower()
             compare_with = gcmd.get("COMPARE_WITH", None)
 
@@ -2554,6 +2602,8 @@ class ChopperTune:
                 speed_change_step=speed_change_step,
                 search_method=search_method,
                 travel_distance=travel_distance,
+                axis_min=axis_min,
+                axis_max=axis_max,
                 direction=direction,
                 accel_chip_name=accel_chip_name,
                 run_plotter=run_plotter,

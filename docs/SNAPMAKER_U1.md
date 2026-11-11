@@ -66,11 +66,11 @@ full_steps_per_rotation: 400
 Then run:
 
 ```gcode
-U1_CHOPPER_FIND_X_RESONANCES
+SNAPMAKER_CHOPPER_FIND_X_RESONANCES
 ```
 
 Restart Klipper after the output files are written, then repeat with
-`U1_CHOPPER_FIND_Y_RESONANCES`. Check the startup summary: it should show the
+`SNAPMAKER_CHOPPER_FIND_Y_RESONANCES`. Check the startup summary: it should show the
 same current and chopper values as the corresponding static TMC2240 section.
 
 If TMC Autotune or another runtime tuner is enabled later, static config cannot
@@ -88,7 +88,7 @@ Copy the current and register values printed in the discovery startup summary
 into this template (replace every angle-bracket value):
 
 ```gcode
-U1_CHOPPER_TUNE_X SEARCH_METHOD=progressive MIN_SPEED=<speed> MAX_SPEED=<speed> CURRENT_MIN_MA=<current> CURRENT_MAX_MA=<current> TBL_MIN=<tbl> TBL_MAX=<tbl> TOFF_MIN=<toff> TOFF_MAX=<toff> HSTRT_MIN=<hstrt> HSTRT_MAX=<hstrt> HEND_MIN=<hend> HEND_MAX=<hend> TPFD_MIN=<tpfd> TPFD_MAX=<tpfd>
+SNAPMAKER_CHOPPER_TUNE_X SEARCH_METHOD=progressive MIN_SPEED=<speed> MAX_SPEED=<speed> CURRENT_MIN_MA=<current> CURRENT_MAX_MA=<current> TBL_MIN=<tbl> TBL_MAX=<tbl> TOFF_MIN=<toff> TOFF_MAX=<toff> HSTRT_MIN=<hstrt> HSTRT_MAX=<hstrt> HEND_MIN=<hend> HEND_MAX=<hend> TPFD_MIN=<tpfd> TPFD_MAX=<tpfd>
 ```
 
 After that succeeds, expand only small ranges and one family of fields at a
@@ -101,10 +101,10 @@ transferring a result into your managed TMC2240 configuration.
 
 ## Installed macros
 
-- `U1_CHOPPER_FIND_X_RESONANCES [optional CHOPPER_TUNE parameters]`
-- `U1_CHOPPER_FIND_Y_RESONANCES [optional CHOPPER_TUNE parameters]`
-- `U1_CHOPPER_TUNE_X MIN_SPEED=... MAX_SPEED=... [other parameters]`
-- `U1_CHOPPER_TUNE_Y MIN_SPEED=... MAX_SPEED=... [other parameters]`
+- `SNAPMAKER_CHOPPER_FIND_X_RESONANCES [optional CHOPPER_TUNE parameters]`
+- `SNAPMAKER_CHOPPER_FIND_Y_RESONANCES [optional CHOPPER_TUNE parameters]`
+- `SNAPMAKER_CHOPPER_TUNE_X MIN_SPEED=... MAX_SPEED=... [other parameters]`
+- `SNAPMAKER_CHOPPER_TUNE_Y MIN_SPEED=... MAX_SPEED=... [other parameters]`
 
 The macros appear as workflow buttons in compatible UIs. They forward optional
 parameters but append their own axis and mode last, so an X button cannot be
@@ -112,6 +112,28 @@ redirected to Y and a discovery button cannot become a register sweep. All
 four refuse to run while a print is active or paused. The underlying
 `CHOPPER_TUNE` and `CHOPPER_TUNE_DEBUG` Python commands remain available for
 advanced use.
+
+Fluidd shows a chevron next to each button. Expanding it displays the applicable
+parameters and their defaults. Current Fluidd renders these entries as text
+fields rather than native select controls. For choice-like fields, use:
+
+- `DIRECTION`: `1` or `-1`
+- `SEARCH_METHOD`: `progressive`, `adaptive`, or `brute_force`
+- `RUN_PLOTTER`: `true`, `false`, `1`, or `0`
+- Optional numeric fields: `auto` leaves the choice to the tuner
+
+`AXIS_MIN` and `AXIS_MAX` define a conservative coordinate window for the
+physical axis named by the macro. Both default to `auto`. They may shrink—but
+never expand—the configured printer range after the plugin's inset is applied,
+and `AXIS_MIN` must be less than `AXIS_MAX`. The diagonal CoreXY path is also
+checked against the other physical axis. Example:
+
+```gcode
+SNAPMAKER_CHOPPER_FIND_X_RESONANCES AXIS_MIN=20 AXIS_MAX=250
+```
+
+`TRAVEL_DISTANCE` remains an optional path-length override inside that protected
+window. An unsafe travel distance is reduced or rejected before movement.
 
 ## Recovery
 

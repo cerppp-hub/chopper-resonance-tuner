@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import tempfile
 import zipfile
 from pathlib import Path
@@ -40,8 +41,8 @@ def compile_python() -> None:
 def verify_manifest() -> None:
     manifest = json.loads((PACKAGE_ROOT / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["name"] == "u1-chopper-resonance-tuner"
-    assert manifest["version"] == "0.2.0-u1.2"
-    assert manifest["sw_version"] == "git.7e95549+u1.2"
+    assert manifest["version"] == "0.2.0-u1.3"
+    assert manifest["sw_version"] == "git.7e95549+u1.3"
     assert manifest["channel"] == "experiment"
     assert manifest["install"]["restart"] == ["klipper"]
     assert manifest["requires"]["variables"] == []
@@ -80,7 +81,11 @@ def verify_plugin_source() -> None:
             '"Snapmaker U1 chopper tuning supports AXIS=X or AXIS=Y only"',
             'if self.kinematics != "corexy"',
             '"CoreXY X/Y full_steps_per_rotation values must match: "',
-            "available_distance = a_axis_max - a_axis_min - self.boundary_margin",
+            'f"AXIS_MIN/AXIS_MAX for {axes[0].upper()} must remain inside "',
+            'gcmd.get_float("AXIS_MIN", None)',
+            'gcmd.get_float("AXIS_MAX", None)',
+            '"axis_travel_limit"',
+            "available_distance = (",
             "distance_epsilon = 1.0e-6",
             'tbl_min = gcmd.get_int("TBL_MIN", None)',
             'tpfd_min = gcmd.get_int("TPFD_MIN", None)',
@@ -103,21 +108,75 @@ def verify_plugin_config() -> None:
             "fclk: 12.5",
             "results_path: /userdata/gcodes/shaper_calibrate/chopper_magnitude",
             "allow_save_config: False",
-            "[gcode_macro U1_CHOPPER_FIND_X_RESONANCES]",
-            "[gcode_macro U1_CHOPPER_FIND_Y_RESONANCES]",
-            "[gcode_macro U1_CHOPPER_TUNE_X]",
-            "[gcode_macro U1_CHOPPER_TUNE_Y]",
-            "CHOPPER_TUNE {rawparams} AXIS=X FIND_RESONANCES=true",
-            "CHOPPER_TUNE {rawparams} AXIS=Y FIND_RESONANCES=true",
-            "CHOPPER_TUNE {rawparams} AXIS=X FIND_RESONANCES=false",
-            "CHOPPER_TUNE {rawparams} AXIS=Y FIND_RESONANCES=false",
+            "[gcode_macro SNAPMAKER_CHOPPER_FIND_X_RESONANCES]",
+            "[gcode_macro SNAPMAKER_CHOPPER_FIND_Y_RESONANCES]",
+            "[gcode_macro SNAPMAKER_CHOPPER_TUNE_X]",
+            "[gcode_macro SNAPMAKER_CHOPPER_TUNE_Y]",
+            "_SNAPMAKER_CHOPPER_RUN {rawparams} AXIS=X FIND_RESONANCES=true",
+            "_SNAPMAKER_CHOPPER_RUN {rawparams} AXIS=Y FIND_RESONANCES=true",
+            "_SNAPMAKER_CHOPPER_RUN {rawparams} AXIS=X FIND_RESONANCES=false",
+            "_SNAPMAKER_CHOPPER_RUN {rawparams} AXIS=Y FIND_RESONANCES=false",
+            "[gcode_macro _SNAPMAKER_CHOPPER_RUN]",
+            'params.AXIS_MIN|default("auto")',
+            'params.AXIS_MAX|default("auto")',
+            'params.SEARCH_METHOD|default("progressive")',
+            'params.RUN_PLOTTER|default("true")',
             'state in ["printing", "paused"]',
-            '"MIN_SPEED" not in params or "MAX_SPEED" not in params',
+            "Register tuning requires numeric MIN_SPEED and MAX_SPEED values",
         ),
     )
     config_text = config_path.read_text(encoding="utf-8")
-    assert config_text.count("[gcode_macro U1_CHOPPER_") == 4
-    assert config_text.count("Restart Klipper after completion or abort") == 4
+    assert config_text.count("[gcode_macro SNAPMAKER_CHOPPER_") == 4
+    assert config_text.count("Restart Klipper after completion or abort") == 1
+    macro_names = re.findall(r"^\[gcode_macro ([^\]]+)\]$", config_text, re.MULTILINE)
+    assert macro_names
+    assert all(not re.search(r"\d", name) for name in macro_names)
+
+    # Mirror Fluidd's current params.NAME scanner to ensure every visible
+    # button receives its expandable parameter panel.
+    def macro_params(name: str) -> set[str]:
+        section = config_text.split(f"[gcode_macro {name}]", 1)[1]
+        section = section.split("[gcode_macro ", 1)[0]
+        return {
+            match.group(1).upper()
+            for match in re.finditer(
+                r"params\.(\w+\b)(?!\s*\()(.*)", section, flags=re.IGNORECASE
+            )
+        }
+
+    discovery_params = {
+        "DIRECTION",
+        "CURRENT_MIN_MA",
+        "TBL_MIN",
+        "TOFF_MIN",
+        "HSTRT_HEND_MAX",
+        "HSTRT_MIN",
+        "HEND_MIN",
+        "TPFD_MIN",
+        "MIN_SPEED",
+        "MAX_SPEED",
+        "SPEED_CHANGE_STEP",
+        "ITERATIONS",
+        "TRAVEL_DISTANCE",
+        "AXIS_MIN",
+        "AXIS_MAX",
+        "ACCELEROMETER",
+        "RUN_PLOTTER",
+    }
+    tuning_params = discovery_params | {
+        "SEARCH_METHOD",
+        "CURRENT_MAX_MA",
+        "TBL_MAX",
+        "TOFF_MAX",
+        "HSTRT_MAX",
+        "HEND_MAX",
+        "TPFD_MAX",
+        "COMPARE_WITH",
+    }
+    assert macro_params("SNAPMAKER_CHOPPER_FIND_X_RESONANCES") == discovery_params
+    assert macro_params("SNAPMAKER_CHOPPER_FIND_Y_RESONANCES") == discovery_params
+    assert macro_params("SNAPMAKER_CHOPPER_TUNE_X") == tuning_params
+    assert macro_params("SNAPMAKER_CHOPPER_TUNE_Y") == tuning_params
 
 
 def verify_u1_firmware_contract() -> None:

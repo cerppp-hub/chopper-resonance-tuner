@@ -128,3 +128,23 @@ def test_auto_speed_keeps_boundary_margin():
     assert minimum > 0
     assert step > 0
     assert distance <= 250.0
+
+
+def test_custom_axis_window_can_only_shrink_safe_machine_limits():
+    tuner = make_tuner()
+    tuner.inset = 10.0
+    tuner.stepper_settings = {
+        "stepper_x": {"position_min": 0.0, "position_max": 271.0},
+        "stepper_y": {"position_min": 0.0, "position_max": 335.0},
+    }
+
+    limits = tuner.get_axis_limits(("x", "y"), 20.0, 250.0)
+
+    assert limits == (20.0, 250.0, 135.0, 167.5)
+    assert tuner.axis_travel_limit == 230.0
+    with pytest.raises(RuntimeError, match="inset-safe machine window"):
+        tuner.get_axis_limits(("x", "y"), 5.0, 250.0)
+    with pytest.raises(RuntimeError, match="inset-safe machine window"):
+        tuner.get_axis_limits(("x", "y"), 20.0, 265.0)
+    with pytest.raises(RuntimeError, match="must be less than"):
+        tuner.get_axis_limits(("x", "y"), 200.0, 100.0)

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0-u1.3 - 2026-11-11
+
+- Expose every applicable `CHOPPER_TUNE` option as an explicit Fluidd macro
+  parameter so each visible macro button gains an expandable parameter panel.
+- Add `AXIS_MIN` and `AXIS_MAX` runtime bounds. User bounds may only shrink the
+  inset-safe printer window, must be ordered, and are applied to midpoint,
+  speed, and travel calculations before any tuning movement.
+- Sanitize Fluidd's `auto` and `required` placeholders, validate direction,
+  search-method, plotting, and speed choices, and keep axis/mode locked to the
+  selected macro.
+
 ## 0.2.0-u1.2 - 2026-11-11
 
 - Add visible U1 macros for X/Y resonance discovery and X/Y register tuning
